@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h4 class="mb-0">{{ '編輯類別' if category else '新增類別' }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('category.update_category', id=category.id) if category else url_for('category.create_category') }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">類型</label>
+                        <select name="type" class="form-select" required {% if category %}disabled{% endif %}>
+                            <option value="expense" {% if category and category.type == 'expense' %}selected{% endif %}>支出</option>
+                            <option value="income" {% if category and category.type == 'income' %}selected{% endif %}>收入</option>
+                        </select>
+                        {% if category %}
+                        <!-- 編輯時類型不可改，用 hidden 欄位傳值 -->
+                        <input type="hidden" name="type" value="{{ category.type }}">
+                        <div class="form-text text-muted">類別類型一旦建立後無法修改。</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">類別名稱</label>
+                        <input type="text" name="name" class="form-control" required maxlength="50" placeholder="例如：餐飲、交通" value="{{ category.name if category else '' }}">
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('category.list_categories') }}" class="btn btn-outline-secondary">取消</a>
+                        <button type="submit" class="btn btn-primary px-4">儲存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

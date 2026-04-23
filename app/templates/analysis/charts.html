@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>圓餅圖分析</h2>
+</div>
+
+<!-- 月份選擇器 -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('analysis.charts') }}" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">年份</label>
+                <input type="number" name="year" class="form-control" min="2000" max="2100" value="{{ year }}" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">月份</label>
+                <select name="month" class="form-select" required>
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if month == m %}selected{% endif %}>{{ m }}月</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-secondary w-100">檢視</button>
+            </div>
+            <div class="col-md-4 text-end">
+                <a href="{{ url_for('analysis.summary') }}" class="btn btn-outline-primary">切換至月度摘要</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 支出圓餅圖 -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-danger text-center">當月支出佔比</h5>
+            </div>
+            <div class="card-body">
+                {% if expense_data %}
+                <canvas id="expenseChart"></canvas>
+                <div class="mt-4 table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>類別</th><th class="text-end">金額</th></tr></thead>
+                        <tbody>
+                            {% for d in expense_data %}
+                            <tr><td>{{ d.category_name }}</td><td class="text-end">${{ "%.2f"|format(d.total) }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted my-5">本月無支出紀錄</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 收入圓餅圖 -->
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0 text-success text-center">當月收入佔比</h5>
+            </div>
+            <div class="card-body">
+                {% if income_data %}
+                <canvas id="incomeChart"></canvas>
+                <div class="mt-4 table-responsive">
+                    <table class="table table-sm">
+                        <thead><tr><th>類別</th><th class="text-end">金額</th></tr></thead>
+                        <tbody>
+                            {% for d in income_data %}
+                            <tr><td>{{ d.category_name }}</td><td class="text-end">${{ "%.2f"|format(d.total) }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted my-5">本月無收入紀錄</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const expenseData = {{ expense_data | tojson | safe }};
+    const incomeData = {{ income_data | tojson | safe }};
+
+    function generateColors(count) {
+        const colors = [];
+        const baseHues = [0, 210, 120, 280, 45, 180, 320, 150];
+        for(let i=0; i<count; i++) {
+            const hue = baseHues[i % baseHues.length];
+            colors.push(`hsl(${hue}, 70%, 60%)`);
+        }
+        return colors;
+    }
+
+    if (expenseData && expenseData.length > 0) {
+        new Chart(document.getElementById('expenseChart'), {
+            type: 'pie',
+            data: {
+                labels: expenseData.map(d => d.category_name),
+                datasets: [{
+                    data: expenseData.map(d => d.total),
+                    backgroundColor: generateColors(expenseData.length)
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+
+    if (incomeData && incomeData.length > 0) {
+        new Chart(document.getElementById('incomeChart'), {
+            type: 'pie',
+            data: {
+                labels: incomeData.map(d => d.category_name),
+                datasets: [{
+                    data: incomeData.map(d => d.total),
+                    backgroundColor: generateColors(incomeData.length)
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
+});
+</script>
+{% endblock %}

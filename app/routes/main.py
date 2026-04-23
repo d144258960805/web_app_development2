@@ -5,6 +5,7 @@ app/routes/main.py
 負責首頁總覽頁面，顯示餘額統計與近期交易紀錄。
 """
 from flask import Blueprint, render_template
+from app.models import Transaction
 
 bp = Blueprint('main', __name__)
 
@@ -23,5 +24,6 @@ def index():
     輸出：渲染 index.html
     傳入變數：summary, recent_transactions
     """
-    # TODO: 實作首頁邏輯
-    pass
+    summary = Transaction.get_balance_summary()
+    recent_transactions = Transaction.get_recent(limit=10)
+    return render_template('index.html', summary=summary, recent_transactions=recent_transactions)

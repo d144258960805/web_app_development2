@@ -1,155 +1,166 @@
 """
 app/routes/transaction.py
 交易紀錄模組路由
-
-負責交易紀錄的 CRUD 操作，包含：
-- 交易列表（含篩選搜尋）
-- 新增交易
-- 編輯交易
-- 刪除交易
 """
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from app.models import Transaction, Category
 
 bp = Blueprint('transaction', __name__)
 
-
 @bp.route('/transactions')
 def list_transactions():
-    """
-    交易列表
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+    type = request.args.get('type')
+    category_id = request.args.get('category_id')
+    keyword = request.args.get('keyword')
 
-    GET /transactions
+    date_from = None
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
 
-    輸入（Query 參數，皆選填）：
-    - date_from: 起始日期（YYYY-MM-DD）
-    - date_to: 結束日期（YYYY-MM-DD）
-    - type: 交易類型（income / expense）
-    - category_id: 類別 ID（整數）
-    - keyword: 備註關鍵字
+    date_to = None
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+            
+    if category_id:
+        try:
+            category_id = int(category_id)
+        except ValueError:
+            category_id = None
 
-    處理邏輯：
-    1. 解析篩選條件
-    2. 呼叫 Transaction.get_filtered(...) 取得篩選結果
-    3. 呼叫 Category.get_all() 取得類別列表（供篩選下拉選單）
-
-    輸出：渲染 transactions/list.html
-    傳入變數：transactions, categories, filters
-    """
-    # TODO: 實作交易列表邏輯
-    pass
-
+    transactions = Transaction.get_filtered(
+        date_from=date_from,
+        date_to=date_to,
+        type=type,
+        category_id=category_id,
+        keyword=keyword
+    )
+    categories = Category.get_all()
+    filters = {
+        'date_from': date_from_str,
+        'date_to': date_to_str,
+        'type': type,
+        'category_id': category_id,
+        'keyword': keyword
+    }
+    
+    return render_template('transactions/list.html', transactions=transactions, categories=categories, filters=filters)
 
 @bp.route('/transactions/new', methods=['GET'])
 def new_transaction():
-    """
-    新增交易頁面
-
-    GET /transactions/new
-
-    處理邏輯：
-    1. 呼叫 Category.get_by_type('income') 取得收入類別
-    2. 呼叫 Category.get_by_type('expense') 取得支出類別
-
-    輸出：渲染 transactions/form.html
-    傳入變數：income_categories, expense_categories, transaction=None
-    """
-    # TODO: 實作新增交易頁面邏輯
-    pass
-
+    income_categories = Category.get_by_type('income')
+    expense_categories = Category.get_by_type('expense')
+    return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
 @bp.route('/transactions/new', methods=['POST'])
 def create_transaction():
-    """
-    建立交易
+    amount_str = request.form.get('amount')
+    type = request.form.get('type')
+    category_id_str = request.form.get('category_id')
+    date_str = request.form.get('date')
+    note = request.form.get('note', '')
 
-    POST /transactions/new
+    income_categories = Category.get_by_type('income')
+    expense_categories = Category.get_by_type('expense')
 
-    輸入（表單欄位）：
-    - amount: 金額（必填，正數）
-    - type: 類型（必填，income / expense）
-    - category_id: 類別 ID（必填，整數）
-    - date: 日期（必填，YYYY-MM-DD）
-    - note: 備註（選填）
+    try:
+        amount = float(amount_str)
+        if amount <= 0:
+            raise ValueError("金額必須大於 0")
+    except (TypeError, ValueError):
+        flash('金額必須大於 0', 'danger')
+        return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
-    處理邏輯：
-    1. 驗證表單資料（金額 > 0、類型合法、日期格式正確）
-    2. 呼叫 Transaction.create(...) 建立紀錄
+    if type not in ['income', 'expense']:
+        flash('無效的交易類型', 'danger')
+        return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
-    輸出：
-    - 成功 → 重導向 /
-    - 失敗 → 重新渲染 transactions/form.html 並顯示錯誤
+    try:
+        category_id = int(category_id_str)
+    except (TypeError, ValueError):
+        flash('請選擇有效的類別', 'danger')
+        return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
-    錯誤處理：
-    - 金額非正數 → 顯示「金額必須大於 0」
-    - 類別不存在 → 顯示「請選擇有效的類別」
-    - 日期格式錯誤 → 顯示「請輸入正確的日期格式」
-    """
-    # TODO: 實作建立交易邏輯
-    pass
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        flash('請輸入正確的日期格式', 'danger')
+        return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
+    try:
+        Transaction.create(amount=amount, type=type, category_id=category_id, date=date, note=note)
+        flash('交易建立成功', 'success')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        flash(f'發生錯誤: {str(e)}', 'danger')
+        return render_template('transactions/form.html', income_categories=income_categories, expense_categories=expense_categories, transaction=None)
 
 @bp.route('/transactions/<int:id>/edit', methods=['GET'])
 def edit_transaction(id):
-    """
-    編輯交易頁面
-
-    GET /transactions/<id>/edit
-
-    輸入：URL 參數 id（整數）
-
-    處理邏輯：
-    1. 呼叫 Transaction.get_by_id(id) 取得交易紀錄
-    2. 取得所有類別供下拉選單
-
-    輸出：渲染 transactions/form.html
-    傳入變數：transaction（現有資料）, income_categories, expense_categories
-
-    錯誤處理：ID 不存在 → 404 Not Found
-    """
-    # TODO: 實作編輯交易頁面邏輯
-    pass
-
+    transaction = Transaction.get_by_id(id)
+    income_categories = Category.get_by_type('income')
+    expense_categories = Category.get_by_type('expense')
+    return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
 @bp.route('/transactions/<int:id>/edit', methods=['POST'])
 def update_transaction(id):
-    """
-    更新交易
+    transaction = Transaction.get_by_id(id)
+    amount_str = request.form.get('amount')
+    type = request.form.get('type')
+    category_id_str = request.form.get('category_id')
+    date_str = request.form.get('date')
+    note = request.form.get('note', '')
 
-    POST /transactions/<id>/edit
+    income_categories = Category.get_by_type('income')
+    expense_categories = Category.get_by_type('expense')
 
-    輸入：URL 參數 id + 表單欄位（同建立交易）
+    try:
+        amount = float(amount_str)
+        if amount <= 0:
+            raise ValueError("金額必須大於 0")
+    except (TypeError, ValueError):
+        flash('金額必須大於 0', 'danger')
+        return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
-    處理邏輯：
-    1. 呼叫 Transaction.get_by_id(id) 取得紀錄
-    2. 驗證表單資料
-    3. 呼叫 transaction.update(...) 更新紀錄
+    if type not in ['income', 'expense']:
+        flash('無效的交易類型', 'danger')
+        return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
-    輸出：
-    - 成功 → 重導向 /transactions
-    - 失敗 → 重新渲染 transactions/form.html
+    try:
+        category_id = int(category_id_str)
+    except (TypeError, ValueError):
+        flash('請選擇有效的類別', 'danger')
+        return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
-    錯誤處理：同建立交易 + ID 不存在 → 404
-    """
-    # TODO: 實作更新交易邏輯
-    pass
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        flash('請輸入正確的日期格式', 'danger')
+        return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
+    try:
+        transaction.update(amount=amount, type=type, category_id=category_id, date=date, note=note)
+        flash('交易更新成功', 'success')
+        return redirect(url_for('transaction.list_transactions'))
+    except Exception as e:
+        flash(f'發生錯誤: {str(e)}', 'danger')
+        return render_template('transactions/form.html', transaction=transaction, income_categories=income_categories, expense_categories=expense_categories)
 
 @bp.route('/transactions/<int:id>/delete', methods=['POST'])
 def delete_transaction(id):
-    """
-    刪除交易
-
-    POST /transactions/<id>/delete
-
-    輸入：URL 參數 id（整數）
-
-    處理邏輯：
-    1. 呼叫 Transaction.get_by_id(id) 取得紀錄
-    2. 呼叫 transaction.delete() 刪除紀錄
-
-    輸出：重導向 /transactions
-
-    錯誤處理：ID 不存在 → 404 Not Found
-    """
-    # TODO: 實作刪除交易邏輯
-    pass
+    transaction = Transaction.get_by_id(id)
+    try:
+        transaction.delete()
+        flash('交易刪除成功', 'success')
+    except Exception as e:
+        flash(f'發生錯誤: {str(e)}', 'danger')
+        
+    return redirect(url_for('transaction.list_transactions'))

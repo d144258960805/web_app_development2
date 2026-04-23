@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>月度收支摘要</h2>
+    <a href="{{ url_for('analysis.charts') }}" class="btn btn-outline-primary">切換至圓餅圖分析</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-start ps-4">月份</th>
+                        <th>總收入</th>
+                        <th>總支出</th>
+                        <th class="text-end pe-4">結餘</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in monthly_data %}
+                    <tr>
+                        <td class="text-start ps-4 fw-bold">{{ m.month }}</td>
+                        <td class="text-success">${{ "%.2f"|format(m.total_income) }}</td>
+                        <td class="text-danger">${{ "%.2f"|format(m.total_expense) }}</td>
+                        <td class="text-end pe-4 fw-bold {% if m.balance >= 0 %}text-primary{% else %}text-secondary{% endif %}">
+                            ${{ "%.2f"|format(m.balance) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">近 12 個月尚無任何交易紀錄</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

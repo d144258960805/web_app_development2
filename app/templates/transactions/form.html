@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h4 class="mb-0">{{ '編輯交易' if transaction else '新增交易' }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('transaction.update_transaction', id=transaction.id) if transaction else url_for('transaction.create_transaction') }}">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">類型</label>
+                        <select name="type" id="type-select" class="form-select" required>
+                            <option value="expense" {% if transaction and transaction.type == 'expense' %}selected{% endif %}>支出</option>
+                            <option value="income" {% if transaction and transaction.type == 'income' %}selected{% endif %}>收入</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">類別</label>
+                        <select name="category_id" id="category-select" class="form-select" required>
+                            <optgroup label="支出" id="optgroup-expense">
+                                {% for c in expense_categories %}
+                                <option value="{{ c.id }}" {% if transaction and transaction.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="收入" id="optgroup-income" style="display: none;">
+                                {% for c in income_categories %}
+                                <option value="{{ c.id }}" {% if transaction and transaction.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">日期</label>
+                            <input type="date" name="date" class="form-control" required value="{{ transaction.date if transaction else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">金額</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0.01" name="amount" class="form-control" required value="{{ transaction.amount if transaction else '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">備註（選填）</label>
+                        <input type="text" name="note" class="form-control" placeholder="例如：午餐便當" value="{{ transaction.note if transaction else '' }}">
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('transaction.list_transactions') }}" class="btn btn-outline-secondary">取消</a>
+                        <button type="submit" class="btn btn-primary px-4">儲存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.getElementById('type-select');
+    const optgroupExpense = document.getElementById('optgroup-expense');
+    const optgroupIncome = document.getElementById('optgroup-income');
+    const categorySelect = document.getElementById('category-select');
+
+    function updateCategoryOptions() {
+        if (typeSelect.value === 'expense') {
+            optgroupExpense.style.display = '';
+            optgroupIncome.style.display = 'none';
+            if (categorySelect.selectedOptions[0].parentElement.style.display === 'none') {
+                categorySelect.value = optgroupExpense.querySelector('option').value;
+            }
+        } else {
+            optgroupExpense.style.display = 'none';
+            optgroupIncome.style.display = '';
+            if (categorySelect.selectedOptions[0].parentElement.style.display === 'none') {
+                categorySelect.value = optgroupIncome.querySelector('option').value;
+            }
+        }
+    }
+
+    typeSelect.addEventListener('change', updateCategoryOptions);
+    updateCategoryOptions();
+});
+</script>
+{% endblock %}
